@@ -133,10 +133,12 @@
         return this.init(params, context);
     };
 
+    //扩展属性
     extend(Dom.prototype, {
         'domjs': '0.1.0'
     });
 
+    //扩展基础方法
     extend(Dom.prototype, {
         //解析器
         init: function (params, context) {
@@ -205,6 +207,54 @@
             });
         }
     });
+    
+    //扩展dom方法
+    extend(Dom.prototype, {
+        html: function (html) {
+            if (!isStr(html)) {
+                return this[0].innerHTML;
+            }
+
+            return this.each(function () {
+                this.innerHTML = html;
+            });
+        },
+        text: function (text) {
+            if (!isStr(text)) {
+                return this[0].textContent;
+            }
+
+            return this.each(function () {
+                this.textContent = text;
+            });
+        },
+        append: function (params) {
+            return this.each(function () {
+                var that = this;
+                dom(params).each(function(){
+                    that.appendChild(this);
+                });
+            });
+        },
+        appendTo: function (params) {
+            return dom(params).append(this);
+        },
+        prepend: function (params) {
+            return this.each(function () {
+                var that = this;
+                dom(params).each(function () {
+                    if (that.childNodes.length === 0) {
+                        that.appendChild(this);
+                    } else {
+                        that.insertBefore(this, that.firstChild);
+                    }
+                });
+            });
+        },
+        prependTo: function (params) {
+            return dom(params).prepend(this);
+        }
+    });
 
     function dom(params, context) {
         return new Dom(params, context);
@@ -212,7 +262,6 @@
 
     extend(dom, {});
 
-    dom.fn = Dom.prototype;
-
+    dom.fn = Dom.prototype; 
     return dom;
 }));

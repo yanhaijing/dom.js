@@ -23,7 +23,11 @@
     }
 }(this, function(root) {
     var doc = root.document;
-    var slice = [].slice;
+    var emptyArray = [];
+    var slice = emptyArray.slice;
+    var forEach = emptyArray.forEach;
+    var map = emptyArray.map;
+    var filter = emptyArray.filter;
     var toString = {}.toString;
     var hasOwn = {}.hasOwnProperty;
     var regTagFragment = /^\s*<(\w+|!)[^>]*>/;
@@ -51,17 +55,23 @@
 
         return 'unkonw';
     }
-    function isArr(arr) {
+    function isArray(arr) {
         return Array.isArray ? Array.isArray(arr) : getType(arr) === 'array';
     }
-    function isObj(obj) {
+    function isObject(obj) {
         return getType(obj) === 'object';
     }
-    function isFn(fn) {
+    function isFunction(fn) {
         return getType(fn) === 'function';
     }
-    function isStr(str) {
+    function isString(str) {
         return getType(str) === 'string';
+    }
+    function isNumber(num) {
+        return getType(num) === 'number';
+    }
+    function likeArray(arr) {
+        return getType(arr.length) === 'number';
     }
     function extend() {
         var target = arguments[0] || {};
@@ -95,13 +105,13 @@
                     continue;
                 }
                 
-                if (copy && (isObj(copy) || (copyIsArr = isArr(copy)))) {
+                if (copy && (isObject(copy) || (copyIsArr = isArray(copy)))) {
                     if (copyIsArr) {
                         copyIsArr = false;
-                        clone = src && isArr(src) ? src : [];
+                        clone = src && isArray(src) ? src : [];
 
                     } else {
-                        clone = src && isObj(src) ? src : {};
+                        clone = src && isObject(src) ? src : {};
                     }
                     target[ name ] = extendDeep(clone, copy);
                 } else if (typeof copy !== 'undefined'){
@@ -113,19 +123,13 @@
 
         return target;
     }
-    function trim(str) {
-        if (getType(str) !== string) {
-            return '';
-        }
 
-        return isFn(str.trim) ? str.trim() : str.replace(/(^\s*)|(\s*$)/g, '');
-    }
     function each(arr, callback, context) {
-        for (var i = 0, len = arr.length; i < len; i++) {
-            if (callback.call(context, i, arr[i]) === false) {
-                return arr;
-            }
-        }
+        var flag = true;
+        forEach.call(arr, function (val, key, arr) {
+            if (flag === false) return 0;
+            flag = callback.call(context, val, key, arr);
+        }, context);
         return arr;
     }
 
@@ -150,7 +154,7 @@
             }
 
             //html字符串 <div></div>
-            if (isStr(params) && regTagFragment.test(params)) {
+            if (isString(params) && regTagFragment.test(params)) {
                 var div = doc.createElement('div');
                 div.className = 'html-wp';
                 var docFrag = doc.createDocumentFragment();
@@ -159,7 +163,7 @@
                 div.innerHTML = params;
                 var childs = div.children;
 
-                each(childs, function (key, val) {
+                each(childs, function (val, key) {
                     that[key] = val;
                 });
 
@@ -177,7 +181,6 @@
             //判断context
             var $ctx = dom(context || doc);
 
-            this.context = $ctx;
             var nodes = [];
             //数组 nodelist htmlcollection
             if (typeof params !== 'string') {
@@ -185,16 +188,16 @@
             } else {
                 this.selector = params;
                 //选择符的情况
-                $ctx.each(function (key, val) {
+                $ctx.each(function (val, key) {
                     var eles = val.querySelectorAll(params);
-                    each(eles, function (key, val) {
+                    each(eles, function (val, key) {
                         nodes.push(val);
                     });
                 });
             }
 
             //复制到this
-            each(nodes, function (key, val) {
+            each(nodes, function (val, key) {
                 that[key] = val;
             });
 
@@ -202,16 +205,39 @@
             return this;
         },
         each: function (callback) {
-            return each(this, function (key, val) {
-                return callback.call(val, key, val);
+            return each(this, function (val, key, arr) {
+                return callback.call(val, val, key, arr);
             });
+        },
+        map: function () {
+
+        },    
+        slice: function () {
+
+        },
+        push: function () {
+
+        },
+        pop: function () {
+
+        },
+        size: function () {
+            return this.length;
+        },
+        get: function (index) {
+            if (!isNumber(index)) {
+                return slice.call(this, 0);
+            }
+            var len = this.size();
+            index = (index + len) % len;
+            return this[index];
         }
     });
     
     //扩展dom方法
     extend(Dom.prototype, {
         html: function (html) {
-            if (!isStr(html)) {
+            if (!isString(html)) {
                 return this[0].innerHTML;
             }
 
@@ -220,13 +246,16 @@
             });
         },
         text: function (text) {
-            if (!isStr(text)) {
+            if (!isString(text)) {
                 return this[0].textContent;
             }
 
             return this.each(function () {
                 this.textContent = text;
             });
+        },
+        val: function () {
+
         },
         append: function (params) {
             return this.each(function () {
@@ -253,15 +282,180 @@
         },
         prependTo: function (params) {
             return dom(params).prepend(this);
+        },
+        after: function (params) {
+        },
+        before: function (params) {
+        },
+        insertAfter: function (params) {
+
+        },
+        insertBefore: function (params) {
+
+        },
+        remove: function (params) {
+
+        },
+        empty: function () {
+            
+        },
+        clone: function () {
+
+        },
+        wrap: function () {
+
+        },
+        wrapAll: function () {
+
+        },
+        wrapInner: function () {
+
+        },
+        unwrap: function () {
+
+        };
+    });
+    
+    //扩展筛选方法
+    extend(Dom.prototype, {
+        eq: function (index) {
+            return dom(this.get(index));
+        },
+        first: function () {
+            return this.eq(0);
+        },
+        last: function () {
+            return this.eq(-1);
+        },
+        find: function (selector) {
+            return dom(selector, this);
+        },
+        filter: function(selector) {
+
+        },
+        not: function () {
+
+        },
+        children: function (selector) {
+
+        },
+        parent: function () {
+
+        },
+        parents: function () {
+
+        },
+        closest: function () {
+
+        },
+        prev: function () {
+
+        },
+        prevAll: function () {
+
+        },
+        next: function () {
+
+        },
+        nextAll: function () {
+
+        },
+        siblings: function () {
+
+        },
+        add: function () {
+
+        },
+        end: function () {
+
         }
+    });
+
+    //扩展css方法
+    extend(Dom.prototype, {
+        css: function () {
+
+        },
+        hasClass: function () {
+
+        },
+        addClass: function () {
+
+        },
+        removeClass: function () {
+
+        },
+        toggleClass: function () {
+
+        }
+    });
+
+    //扩展css效果
+    extend(Dom.prototype, {
+        show: function () {
+
+        },
+        hide: function () {
+
+        },
+        toggle: function () {
+
+        }
+    });
+
+    //扩展几何方法
+    extend(Dom.prototype, {
+        width: function () {
+
+        },
+        height: function () {
+
+        }
+    });
+
+    //扩展属性方法
+    extend(Dom.prototype, {
+        attr: function () {
+
+        },
+        removeAttr: function () {
+
+        },
+        data: function () {
+            
+        }
+    });
+
+    //扩展事件方法
+    extend(Dom.prototype, {
+        ready: function () {
+
+        },
+        on: function () {
+
+        },
+        off: function () {
+
+        },
+        trigger: function () {
+            
+        }
+    });
+
+    //效果
+    extend(Dom.prototype, {
+
     });
 
     function dom(params, context) {
         return new Dom(params, context);
     }
 
-    extend(dom, {});
+    extend(dom, {
+        version: '0.1.0'
+    });
 
-    dom.fn = Dom.prototype; 
+    dom.fn = Dom.prototype;
+    var $empty = dom();
     return dom;
 }));

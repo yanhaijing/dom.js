@@ -24,10 +24,13 @@
 }(this, function(root) {
     var doc = root.document;
     var emptyArray = [];
+    var indexOf = emptyArray.indexOf;
     var slice = emptyArray.slice;
     var forEach = emptyArray.forEach;
     var map = emptyArray.map;
     var filter = emptyArray.filter;
+    var some = emptyArray.some;
+    var every = emptyArray.every;
     var toString = {}.toString;
     var hasOwn = {}.hasOwnProperty;
     var regTagFragment = /^\s*<(\w+|!)[^>]*>/;
@@ -72,6 +75,9 @@
     }
     function likeArray(arr) {
         return getType(arr.length) === 'number';
+    }
+    function toArray(arr) {
+        return slice.call(arr, 0);
     }
     function extend() {
         var target = arguments[0] || {};
@@ -126,11 +132,28 @@
 
     function each(arr, callback, context) {
         var flag = true;
-        forEach.call(arr, function (val, key, arr) {
-            if (flag === false) return 0;
-            flag = callback.call(context, val, key, arr);
-        }, context);
+        var key;
+        if (likeArray(arr)) {
+            forEach.call(arr, function (val, key, arr) {
+                if (flag === false) return 0;
+                flag = callback.call(context, val, key, arr);
+            }, context);
+        } else {
+            for (key in arr)
+              if (callback.call(context, arr[key], key, arr) === false) break;
+        }
         return arr;
+    }
+    function unique(arr) {
+        return filter.call(arr, function (val, key, arr) {
+            return indexOf.call(arr, val) === key;
+        });
+    }
+
+    function matches(ele, selector) {
+        if (!selector || !ele || ele.nodeType !== 1) return false;
+        var matchesSelector = ele.webkitMatchesSelector || ele.mozMatchesSelector || ele.oMatchesSelector || ele.msMatchesSelector || ele.matchesSelector;
+        return matchesSelector && matchesSelector.call(ele, selector);
     }
 
     function Dom(params, context) {
@@ -204,22 +227,22 @@
             this.length = nodes.length;
             return this;
         },
+    });
+
+    //扩展数组方法
+    extend(Dom.prototype, {
         each: function (callback) {
             return each(this, function (val, key, arr) {
                 return callback.call(val, val, key, arr);
             });
         },
-        map: function () {
-
+        map: function (callback) {
+            return dom(map.call(this, function (val, key, arr) {
+                return callback.call(val, val, key, arr);
+            }));
         },    
-        slice: function () {
-
-        },
-        push: function () {
-
-        },
-        pop: function () {
-
+        slice: function (start, end) {
+            return dom(slice.call(this, start, end));
         },
         size: function () {
             return this.length;
@@ -231,8 +254,11 @@
             var len = this.size();
             index = (index + len) % len;
             return this[index];
+        },
+        indexOf: function (val, fromIndex) {
+            return indexOf.call(this, val, fromIndex);
         }
-    });
+    })
     
     //扩展dom方法
     extend(Dom.prototype, {
@@ -254,8 +280,13 @@
                 this.textContent = text;
             });
         },
-        val: function () {
-
+        val: function (val) {
+            if (getType(val) === 'undefined') {
+                return this[0] && this[0].value;
+            }
+            return this.each(function (val) {
+                val.value = val;
+            });
         },
         append: function (params) {
             return this.each(function () {
@@ -313,7 +344,10 @@
         },
         unwrap: function () {
 
-        };
+        },
+        pluck: function (prop) {
+            return this.map(function(val){ return val[prop]});
+        }
     });
     
     //扩展筛选方法
@@ -331,16 +365,27 @@
             return dom(selector, this);
         },
         filter: function(selector) {
-
+            return dom(filter.call(this, function(ele){
+                return matches(ele, selector);
+            }));
         },
-        not: function () {
-
+        not: function (selector) {
+            return dom(filter.call(this, function(ele){
+                return !matches(ele, selector);
+            }));
         },
         children: function (selector) {
-
+            var res = [];
+            this.each(function (val) {
+                each(val.children, function (val) {
+                    res.push(val);
+                });
+            });
+            return isString(selector) ? dom(res).filter(selector) : dom(res);
         },
-        parent: function () {
-
+        parent: function (selector) {
+            var res = unique(this.pluck('parentNode'));
+            return isString(selector) ? dom(res).filter(selector) : dom(res);
         },
         parents: function () {
 
@@ -376,17 +421,29 @@
         css: function () {
 
         },
-        hasClass: function () {
-
+        hasClass: function (className) {
+            return some.call(this, function (val) {
+                return !((' ' + val.className + ' ').search(' ' + className + ' ') < 0);
+            });
         },
-        addClass: function () {
-
+        addClass: function (classToken) {
+            return this.each(function (val) {
+                val.className += ' ' + classToken;
+            });
         },
-        removeClass: function () {
-
+        removeClass: function (classToken) {
+            return this.each(function () {
+                classToken.split(' ').forEach(function(val) {
+                    this.className = this.className.replace(val, '');
+                }, this);
+            });
         },
-        toggleClass: function () {
-
+        toggleClass: function (classToken) {
+            return this.each(function (val) {
+                classToken.split(' ').forEach(function (val) {
+                    this.hasClass(val) ? this.removeClass(val) : this.addClass(val);
+                }, dom(val));
+            });
         }
     });
 
@@ -415,11 +472,29 @@
 
     //扩展属性方法
     extend(Dom.prototype, {
-        attr: function () {
-
+        attr: function (key, val) {
+            if (!isString(key) && !isObject(key)) return undefined;
+            if (isString(key) && getType(val) === 'undefined') {
+                return this[0] && isFunction(this[0].getAttribute) ? this[0].getAttribute(key) : undefined;
+            }
+            var obj = {};
+            if (isString(key)) {               
+                obj[key] = val;
+            } else {
+                obj = key;
+            }
+            return this.each(function (val) {
+                isFunction(val.setAttribute) && each(obj, function(val, key){
+                    this.setAttribute(key, val);
+                }, val);
+            });
         },
-        removeAttr: function () {
-
+        removeAttr: function (name) {
+            return this.each(function () {
+                this.nodeType === 1 && name.split(' ').forEach(function (val) {
+                    this.removeAttribute(val);
+                }, this);
+            });
         },
         data: function () {
             

@@ -399,18 +399,19 @@
             return isString(selector) ? dom(res).filter(selector) : dom(res);
         },
         parents: function (selector) {
+            function fix(arr) {
+                return filter.call(arr, function (val) {return !!val});
+            }
             var ancestors = [], nodes = this;
-            while (nodes.length > 0)
-              nodes = filter.call(map.call(nodes, function(node){
-                if ((node = node && node.parentNode) && !isDocument(node) && ancestors.indexOf(node) < 0) {
-                    ancestors.push(node);
-                    return node;
-                }
-                }), function (val) {return !!val});
-            return dom(ancestors).filter(selector);
+            while (nodes.length > 0) {
+                ancestors = ancestors.concat(fix(nodes.parent()));
+                nodes = dom(fix(nodes.parent()));
+            }
+              
+            return dom(unique(ancestors)).filter(selector);
         },
-        closest: function () {
-
+        closest: function (selector) {
+            return this.parents(selector).eq(0);
         },
         prev: function () {
 

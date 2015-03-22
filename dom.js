@@ -332,8 +332,8 @@
         empty: function () {
             return this.each(function (val) {val.innerHTML = '';});
         },
-        clone: function () {
-
+        clone: function (deep) {
+            return this.map(function (val) {return val.cloneNode(deep)});
         },
         wrap: function () {
 
@@ -498,8 +498,8 @@
                 }, this);
             });
         },
-        data: function () {
-            
+        data: function (key, val) {
+            return this.attr('data-'+key, val);
         }
     });
 

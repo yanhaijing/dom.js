@@ -25,6 +25,7 @@
     var doc = root.document;
     var emptyArray = [];
     var indexOf = emptyArray.indexOf;
+    var concat = emptyArray.concat;
     var slice = emptyArray.slice;
     var forEach = emptyArray.forEach;
     var map = emptyArray.map;
@@ -82,7 +83,10 @@
     function isPlainObject(obj) {
       return isObject(obj) && !isWindow(obj) && Object.getPrototypeOf(obj) === Object.prototype
     }
-    function likeArray(arr) {
+    function isNode(node) {
+        return typeof node === 'object' && node.nodeName && node.nodeType;
+    }
+    function likeArray(arr) { 
         return getType(arr.length) === 'number';
     }
     function toArray(arr) {
@@ -165,6 +169,17 @@
         return matchesSelector && matchesSelector.call(ele, selector);
     }
 
+    function siblings(ele, pos) {
+        var res = [];
+        var childs = ele.parentNode.children; 
+        var index = indexOf.call(childs, ele);
+        return filter.call(childs, function (val, key) {
+            if (pos > 0) return key > index;
+            if (pos < 0) return key < index;
+            return key !== index;
+        });
+    }
+
     function Dom(params, context) {
         return this.init(params, context);
     };
@@ -181,8 +196,13 @@
             var that = this;
             //"", null, undefined, false ...
             if (!params) {
-                this.length = 0;
-                return this;
+                that.length = 0;
+                return that;
+            }
+
+            //dom对象
+            if (params.domjs === '0.1.0') {
+                return params;
             }
 
             //html字符串 <div></div>
@@ -199,15 +219,15 @@
                     that[key] = val;
                 });
 
-                this.length = childs.length;
-                return this;
+                that.length = childs.length;
+                return that;
             }
 
             //单个node节点
-            if (typeof params === 'object' && params.nodeName) {
-                this.length = 1;
-                this[0] = params;
-                return this;
+            if (isNode(params)) {
+                that.length = 1;
+                that[0] = params;
+                return that;
             }
 
             //判断context
@@ -218,7 +238,7 @@
             if (typeof params !== 'string') {
                 nodes = params;
             } else {
-                this.selector = params;
+                that.selector = params;
                 //选择符的情况
                 $ctx.each(function (val, key) {
                     var eles = val.querySelectorAll(params);
@@ -227,14 +247,18 @@
                     });
                 });
             }
-
+            var len = nodes.length || 0;
             //复制到this
             each(nodes, function (val, key) {
-                that[key] = val;
+                if (isNode(val)) {
+                    that[key] = val;
+                } else {
+                    len--;
+                }
             });
 
-            this.length = nodes.length;
-            return this;
+            that.length = len;
+            return that;
         },
     });
 
@@ -266,6 +290,9 @@
         },
         indexOf: function (val, fromIndex) {
             return indexOf.call(this, val, fromIndex);
+        },
+        concat: function () {
+            return dom(concat.apply(toArray(this), arguments));
         }
     })
     
@@ -413,26 +440,35 @@
         closest: function (selector) {
             return this.parents(selector).eq(0);
         },
-        prev: function () {
-
+        prev: function (selector) {
+            return dom(this.pluck('previousElementSibling')).filter(selector);
         },
-        prevAll: function () {
-
+        prevAll: function (selector) {
+            var res = [];   
+            this.each(function (val) {
+                res = res.concat(siblings(val, -1));
+            });
+            return dom(unique(res)).filter(selector);
         },
-        next: function () {
-
+        next: function (selector) {
+            return dom(this.pluck('nextElementSibling')).filter(selector);
         },
-        nextAll: function () {
-
+        nextAll: function (selector) {
+            var res = [];   
+            this.each(function (val) {
+                res = res.concat(siblings(val, 1));
+            });
+            return dom(unique(res)).filter(selector);
         },
-        siblings: function () {
-
+        siblings: function (selector) {
+            var res = [];   
+            this.each(function (val) {
+                res = res.concat(siblings(val, 0));
+            });
+            return dom(unique(res)).filter(selector);
         },
-        add: function () {
-
-        },
-        end: function () {
-
+        add: function (selector, context) {
+            return dom(unique(this.concat(dom(selector, context))));
         }
     });
 

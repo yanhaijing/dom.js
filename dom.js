@@ -73,6 +73,15 @@
     function isNumber(num) {
         return getType(num) === 'number';
     }
+    function isWindow(win) {
+        return win && win == win.window;
+    }
+    function isDocument(doc) {
+        return doc && doc.nodeType == doc.DOCUMENT_NODE;
+    }
+    function isPlainObject(obj) {
+      return isObject(obj) && !isWindow(obj) && Object.getPrototypeOf(obj) === Object.prototype
+    }
     function likeArray(arr) {
         return getType(arr.length) === 'number';
     }
@@ -367,9 +376,9 @@
             return dom(selector, this);
         },
         filter: function(selector) {
-            return dom(filter.call(this, function(ele){
+            return isString(selector) ? dom(filter.call(this, function(ele){
                 return matches(ele, selector);
-            }));
+            })) : this;
         },
         not: function (selector) {
             return dom(filter.call(this, function(ele){
@@ -389,8 +398,16 @@
             var res = unique(this.pluck('parentNode'));
             return isString(selector) ? dom(res).filter(selector) : dom(res);
         },
-        parents: function () {
-
+        parents: function (selector) {
+            var ancestors = [], nodes = this;
+            while (nodes.length > 0)
+              nodes = filter.call(map.call(nodes, function(node){
+                if ((node = node && node.parentNode) && !isDocument(node) && ancestors.indexOf(node) < 0) {
+                    ancestors.push(node);
+                    return node;
+                }
+                }), function (val) {return !!val});
+            return dom(ancestors).filter(selector);
         },
         closest: function () {
 
@@ -528,8 +545,12 @@
         return new Dom(params, context);
     }
 
+    //扩展dom属性
     extend(dom, {
         version: '0.1.0'
+    });
+    //扩展dom方法
+    extend(dom, {
     });
 
     dom.fn = Dom.prototype;

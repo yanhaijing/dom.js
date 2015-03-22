@@ -324,11 +324,13 @@
         insertBefore: function (params) {
 
         },
-        remove: function (params) {
-
+        remove: function () {
+            return this.each(function (val) {
+                val.parentNode && val.parentNode.removeChild(val);
+            });
         },
         empty: function () {
-            
+            return this.each(function (val) {val.innerHTML = '';});
         },
         clone: function () {
 

@@ -32,6 +32,7 @@
     var filter = emptyArray.filter;
     var some = emptyArray.some;
     var every = emptyArray.every;
+    var reverse = emptyArray.reverse;
     var toString = {}.toString;
     var hasOwn = {}.hasOwnProperty;
     var regTagFragment = /^\s*<(\w+|!)[^>]*>/;
@@ -296,7 +297,10 @@
         },
         concat: function () {
             return dom(concat.apply(toArray(this), arguments));
-        }
+        },
+        reverse: function () {
+            return dom(toArray(this).reverse());
+        };
     })
     
     //扩展dom方法

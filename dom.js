@@ -403,6 +403,12 @@
         },
         pluck: function (prop) {
             return this.map(function(val){ return val[prop]});
+        },
+        replaceWidth: function (params) {
+            return this.before(params).remove();
+        },
+        replaceAll: function (params) {
+            return dom(params).replaceWidth(this);
         }
     });
     
@@ -527,7 +533,7 @@
 
         },
         hide: function () {
-
+            this.css('display', 'none');
         },
         toggle: function () {
 

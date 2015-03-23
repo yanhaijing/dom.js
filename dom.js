@@ -86,6 +86,9 @@
     function isNode(node) {
         return typeof node === 'object' && node.nodeName && node.nodeType;
     }
+    function isElement(ele) {
+        return isNode(ele) && ele.nodeType === 1;
+    }
     function likeArray(arr) { 
         return getType(arr.length) === 'number';
     }
@@ -94,7 +97,7 @@
     }
     function extend() {
         var target = arguments[0] || {};
-        var arrs = Array.prototype.slice.call(arguments, 1);
+        var arrs = slice.call(arguments, 1);
         var len = arrs.length;
      
         for (var i = 0; i < len; i++) {
@@ -351,14 +354,29 @@
             return dom(params).prepend(this);
         },
         after: function (params) {
+            return this.each(function (val) {
+                var flag = !!val.nextSibling;
+                dom(params).each(function () {
+                    if (flag) {
+                        val.parentNode.insertBefore(this, val.nextSibling);
+                    } else {
+                        val.parentNode.appendChild(this);
+                    }
+                });
+            });
         },
         before: function (params) {
+            return this.each(function (val) {
+                dom(params).each(function () {
+                    val.parentNode.insertBefore(this, val);
+                });
+            });
         },
         insertAfter: function (params) {
-
+            return dom(params).after(this);
         },
         insertBefore: function (params) {
-
+            return dom(params).before(this);
         },
         remove: function () {
             return this.each(function (val) {
@@ -588,6 +606,10 @@
     });
     //扩展dom方法
     extend(dom, {
+        isWindow: isWindow,
+        isDocument: isDocument,
+        isNode: isNode,
+        isElement: isElement
     });
 
     dom.fn = Dom.prototype;

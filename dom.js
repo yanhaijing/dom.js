@@ -301,7 +301,7 @@
         reverse: function () {
             return dom(toArray(this).reverse());
         }
-    })
+    });
     
     //扩展dom方法
     extend(Dom.prototype, {
@@ -330,6 +330,13 @@
             return this.each(function (val) {
                 val.value = val;
             });
+        },
+        contents: function () {
+            var res = [];
+            this.each(function() { 
+                res = res.concat(this.contentDocument || slice.call(this.childNodes));
+            });
+            return dom(res);
         },
         append: function (params) {
             return this.each(function () {
@@ -394,7 +401,10 @@
             return this.map(function (val) {return val.cloneNode(deep)});
         },
         wrap: function (params) {
-
+            var $wrap = dom(params).eq(0);
+            return this.each(function(val) {
+                dom(val).wrapAll($wrap.clone(true));
+            });
         },
         unwrap: function () {
             this.parent().each(function(){
@@ -402,11 +412,21 @@
             });
             return this;
         },
-        wrapAll: function () {
-
+        wrapAll: function (params) {
+            if (this[0]) {
+              dom(this[0]).before(params = dom(params));
+              var children;
+              while ((children = params.children()).length) params = children.first();
+              dom(params).append(this);
+            }
+            return this;
         },
-        wrapInner: function () {
-
+        wrapInner: function (params) {
+            return this.each(function (val) {
+                var $val = dom(val);
+                var $contents = $val.contents();
+                $contents.length ? $contents.wrapAll(params): $val.append(params);
+            });
         },
         pluck: function (prop) {
             return this.map(function(val){ return val[prop]});

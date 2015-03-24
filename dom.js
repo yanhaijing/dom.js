@@ -300,7 +300,7 @@
         },
         reverse: function () {
             return dom(toArray(this).reverse());
-        };
+        }
     })
     
     //扩展dom方法
@@ -393,8 +393,14 @@
         clone: function (deep) {
             return this.map(function (val) {return val.cloneNode(deep)});
         },
-        wrap: function () {
+        wrap: function (params) {
 
+        },
+        unwrap: function () {
+            this.parent().each(function(){
+                dom(this).replaceWith(dom(this).children());
+            });
+            return this;
         },
         wrapAll: function () {
 
@@ -402,17 +408,14 @@
         wrapInner: function () {
 
         },
-        unwrap: function () {
-
-        },
         pluck: function (prop) {
             return this.map(function(val){ return val[prop]});
         },
-        replaceWidth: function (params) {
+        replaceWith: function (params) {
             return this.before(params).remove();
         },
         replaceAll: function (params) {
-            return dom(params).replaceWidth(this);
+            return dom(params).replaceWith(this);
         }
     });
     

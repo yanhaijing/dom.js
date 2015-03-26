@@ -33,9 +33,11 @@
     var some = emptyArray.some;
     var every = emptyArray.every;
     var reverse = emptyArray.reverse;
-    var toString = {}.toString;
-    var hasOwn = {}.hasOwnProperty;
+    var emptyObject = {};
+    var toString = emptyObject.toString;
+    var hasOwn = emptyObject.hasOwnProperty;
     var regTagFragment = /^\s*<(\w+|!)[^>]*>/;
+    var elementDisplay = {};
 
     //基础函数
     function getType(x) {
@@ -183,6 +185,25 @@
             return key !== index;
         });
     }
+    function camelize(str){ 
+        return str.replace(/-+(.)?/g, function(match, chr){ 
+            return chr ? chr.toUpperCase() : '';
+        }); 
+    }
+
+    function defaultDisplay(nodeName) {
+        var element, display;
+        if (!elementDisplay[nodeName]) {
+            element = document.createElement(nodeName);
+            document.body.appendChild(element);
+            display = root.getComputedStyle(element).getPropertyValue("display");
+            element.parentNode.removeChild(element);
+            display === "none" && (display = "block");
+            elementDisplay[nodeName] = display;
+        }
+        return elementDisplay[nodeName];
+    }
+
 
     function Dom(params, context) {
         return this.init(params, context);
@@ -525,8 +546,24 @@
 
     //扩展css方法
     extend(Dom.prototype, {
-        css: function () {
+        css: function (prop, val) {
+            if (isString(prop) && !isString(val)) {
+                var ele = this[0];
+                return ele.style[camelize(prop)] || root.getComputedStyle(ele).getPropertyValue(prop);
+            }
 
+            var temp = {};
+            if (isString(prop)) {               
+                temp[prop] = val;
+            } else {
+                temp = isObject(prop) ? prop : {};
+            }
+
+            return this.each(function (val) {
+                each(temp, function (v, k) {
+                    val.style[k] = v;
+                });
+            });
         },
         hasClass: function (className) {
             return some.call(this, function (val) {
@@ -557,23 +594,37 @@
     //扩展css效果
     extend(Dom.prototype, {
         show: function () {
-
+            return this.each(function (val) {
+                this.style.display === "none" && (this.style.display = '');
+                if (root.getComputedStyle(this).getPropertyValue("display") === "none"){                    
+                    this.style.display = defaultDisplay(this.nodeName);
+                }
+            });
         },
         hide: function () {
-            this.css('display', 'none');
+            return this.css('display', 'none');
         },
         toggle: function () {
-
+            return this.each(function (val) {
+                var $val = dom(val);
+                $val.css('display') === 'none' ? $val.show() : $val.hide();
+            });
         }
     });
 
     //扩展几何方法
     extend(Dom.prototype, {
-        width: function () {
-
+        width: function (width) {
+            if (!isNumber(width) && !isString(width)) {
+                return parseInt(this.css('width'), 10);
+            }
+            return this.css('width', parseInt(width, 10) + 'px');
         },
-        height: function () {
-
+        height: function (height) {
+            if (!isNumber(height) && !isString(height)) {
+                return parseInt(this.css('height'), 10);
+            }
+            return this.css('height', parseInt(height, 10) + 'px');
         }
     });
 

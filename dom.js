@@ -11,15 +11,15 @@
     } else {
         // Browser globals
         var _dom = root.dom;
-
-        dom.noConflict = function() {
-            if (root.dom === dom) {
+        var _$ = root.$;
+        dom.noConflict = function(deep) {
+            if (deep && root.dom === dom) {
                 root.dom = _dom;
             }
-
+            if (root.$ === dom) root.$ = _$;
             return dom;
         };
-        root.dom = dom;
+        root.dom = root.$ = dom;
     }
 }(this, function(root) {
     var doc = root.document;
@@ -38,6 +38,8 @@
     var hasOwn = emptyObject.hasOwnProperty;
     var regTagFragment = /^\s*<(\w+|!)[^>]*>/;
     var elementDisplay = {};
+    var randomone = Math.random().toString().slice(2);
+    var handlers = {};
 
     //基础函数
     function getType(x) {
@@ -191,6 +193,14 @@
         }); 
     }
 
+    function gid() {
+        return gid.gid = gid.gid ? gid.gid + 1 : 1;
+    }
+
+    function eid(ele) {
+        return ele['eid' + randomone] || (ele['eid' + randomone] = gid());
+    }
+
     function defaultDisplay(nodeName) {
         var element, display;
         if (!elementDisplay[nodeName]) {
@@ -202,6 +212,69 @@
             elementDisplay[nodeName] = display;
         }
         return elementDisplay[nodeName];
+    }
+    function contains(pNode, cNode) {
+        if (document.documentElement.contains) {
+            return pNode !== cNode && pNode.contains(cNode);
+        }
+
+        while (cNode && (cNode = cNode.parentNode)) {           
+            if (cNode === pNode) return true;
+        }
+        return false;
+    }
+
+    function add(ele, events, callback, data, selector) {
+        var self=this;
+        var id=eid(ele);
+        var set=(handlers[id] || (handlers[id] = []));
+        events.split(/\s/).forEach(function(event){
+            var handler = {
+                callback: callback,
+                selector: selector, 
+                i: set.length,
+                e: event
+            };
+            var proxyfn = handler.proxy = function (e) {
+                //处理事件代理
+                if (selector) {
+                    var $temp = dom(ele).find(selector);
+                    var res = some.call($temp, function(val) {
+                        return val === e.target || contains(val, e.target);
+                    });
+                    //不包含
+                    if (!res) {
+                        return false;
+                    }
+                }
+                e.data = data;
+                var result = callback.apply(ele, e._data === undefined ? [e] : [e].concat(e._data));
+                if (result === false) e.preventDefault(), e.stopPropagation();
+                return result;
+            };
+            set.push(handler);
+            ele.addEventListener && ele.addEventListener(handler.e, proxyfn, false);
+        });
+    }
+
+    function remove(ele, events, callback, selector){
+        events.split(/\s/).forEach(function(event){
+            findHandlers(ele, event, callback, selector).forEach(function(handler){
+                delete handlers[eid(ele)][handler.i];
+                if (ele.removeEventListener) ele.removeEventListener(handler.e, handler.proxy, false);
+            });
+        });
+    }
+
+    function findHandlers(ele, event, callback, selector){
+        var self=this;
+        var id = eid(ele);
+        return (handlers[id] || []).filter(function(handler) {
+            return handler
+            && (handler.e == event) 
+            && (!callback || handler.callback.toString() === callback.toString())
+            && (!selector || handler.selector == selector);
+        });
     }
 
 
@@ -664,20 +737,68 @@
         ready: function () {
 
         },
-        on: function () {
+        on: function (event, selector, data, callback) {
+            //eventmap
+            if (isObject(event)) {
+                each(event, function (callback, event) {
+                    this.on(event, selector, data, callback);
+                });
+                return this;
+            }
 
-        },
-        off: function () {
+            //event, callback
+            if (isFunction(selector)) {
+                callback = selector;
+                selector = '';
+                data = undefined;
+            }
+            //event, selector, callback
+            if (isFunction(data)) {
+                callback = data;
+                data = undefined;
+            }
 
+            //error
+            if (!isString(event) || !isFunction(callback)) return this;
+
+            return this.each(function(){ 
+                add(this, event, callback, data, selector);
+            });
         },
-        trigger: function () {
-            
+        off: function (event, selector, callback) {
+            //eventmap
+            if (isObject(event)) {
+                each(event, function (callback, event) {
+                    this.off(event, selector, callback);
+                });
+                return this;
+            }
+
+            //event, callback
+            if (isFunction(selector)) {
+                callback = selector;
+                selector = undefined;
+            }
+
+            if(!isString(event)) return this;
+
+            return this.each(function(){
+                remove(this, event, callback, selector);
+            });
+        },
+        trigger: function (event, data) {
+            if (!isString(event)) return this;
+            var type = event;
+            var specialEvents={};
+            specialEvents.click = specialEvents.mousedown = specialEvents.mouseup = specialEvents.mousemove = 'MouseEvents';
+
+            event = document.createEvent(specialEvents[type] || 'Events');
+            event.initEvent(type, true, true);
+            event._data = data;
+            return this.each(function(){
+                if('dispatchEvent' in this) this.dispatchEvent(event);
+            });
         }
-    });
-
-    //效果
-    extend(Dom.prototype, {
-
     });
 
     function dom(params, context) {
@@ -693,7 +814,8 @@
         isWindow: isWindow,
         isDocument: isDocument,
         isNode: isNode,
-        isElement: isElement
+        isElement: isElement,
+        contains: contains
     });
 
     dom.fn = Dom.prototype;
